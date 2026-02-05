@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  gateway:
+    build: .
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=5050
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=1h
+      - IPFS_API_URL=http://ipfs:5001
+      - CHAIN_RPC_URL=${CHAIN_RPC_URL:-wss://kusama.api.encointer.org}
+      - MIN_CC_BALANCE=${MIN_CC_BALANCE:-0.1}
+      - RATE_LIMIT_UPLOADS_PER_DAY=${RATE_LIMIT_UPLOADS_PER_DAY:-10}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    depends_on:
+      - ipfs
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5050/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ipfs:
+    image: ipfs/kubo:latest
+    restart: unless-stopped
+    volumes:
+      - ipfs_data:/data/ipfs
+      - ipfs_staging:/export
+    environment:
+      - IPFS_PROFILE=server
+    networks:
+      - internal
+    # Only expose API internally, gateway externally if needed
+    # ports:
+    #   - "8080:8080"  # IPFS gateway (optional)
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - gateway
+    networks:
+      - internal
+
+  # Optional: Certbot for Let's Encrypt
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
+      - /var/www/certbot:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+  # Optional: Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+    networks:
+      - internal
+    profiles:
+      - monitoring
+
+  # Optional: Grafana for dashboards
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - internal
+    profiles:
+      - monitoring
+
+volumes:
+  ipfs_data:
+  ipfs_staging:
+  nginx_logs:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  internal:
+    driver: bridge

@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  gateway:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "5050:5050"
+    environment:
+      - NODE_ENV=development
+      - PORT=5050
+      - JWT_SECRET=dev-secret-change-in-production
+      - JWT_EXPIRES_IN=1h
+      - IPFS_API_URL=http://ipfs:5001
+      - CHAIN_RPC_URL=wss://kusama.api.encointer.org
+      - MIN_CC_BALANCE=0.1
+      - RATE_LIMIT_UPLOADS_PER_DAY=100
+      - LOG_LEVEL=debug
+    depends_on:
+      - ipfs
+    networks:
+      - internal
+
+  ipfs:
+    image: ipfs/kubo:latest
+    restart: unless-stopped
+    ports:
+      - "5001:5001"  # IPFS API
+      - "8080:8080"  # IPFS Gateway
+    volumes:
+      - ipfs_data:/data/ipfs
+    environment:
+      - IPFS_PROFILE=server
+    networks:
+      - internal
+
+volumes:
+  ipfs_data:
+
+networks:
+  internal:
+    driver: bridge
