@@ -31,10 +31,10 @@ class Metrics {
   // Rate limit metrics
   readonly RATE_LIMIT_EXCEEDED = 'ipfs_rate_limit_exceeded_total';
 
-  // CC holder check metrics
-  readonly CC_HOLDER_CHECK_TOTAL = 'ipfs_cc_holder_check_total';
-  readonly CC_HOLDER_CHECK_PASSED = 'ipfs_cc_holder_check_passed_total';
-  readonly CC_HOLDER_CHECK_FAILED = 'ipfs_cc_holder_check_failed_total';
+  // Account check metrics
+  readonly ACCOUNT_CHECK_TOTAL = 'ipfs_account_check_total';
+  readonly ACCOUNT_CHECK_PASSED = 'ipfs_account_check_passed_total';
+  readonly ACCOUNT_CHECK_FAILED = 'ipfs_account_check_failed_total';
 
   constructor() {
     // Initialize counters
@@ -48,9 +48,9 @@ class Metrics {
       this.UPLOAD_FAILURE,
       this.UPLOAD_BYTES,
       this.RATE_LIMIT_EXCEEDED,
-      this.CC_HOLDER_CHECK_TOTAL,
-      this.CC_HOLDER_CHECK_PASSED,
-      this.CC_HOLDER_CHECK_FAILED,
+      this.ACCOUNT_CHECK_TOTAL,
+      this.ACCOUNT_CHECK_PASSED,
+      this.ACCOUNT_CHECK_FAILED,
     ];
 
     for (const name of counterNames) {

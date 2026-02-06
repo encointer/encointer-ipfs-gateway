@@ -7,7 +7,7 @@ import type { FastifyInstance } from 'fastify';
 
 // Mock chain service
 vi.mock('../src/services/chain', () => ({
-  isCCHolder: vi.fn().mockResolvedValue(true),
+  accountExists: vi.fn().mockResolvedValue(true),
   isValidCommunityId: vi.fn().mockReturnValue(true),
   getChainApi: vi.fn(),
   disconnectChain: vi.fn(),

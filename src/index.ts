@@ -74,7 +74,6 @@ async function main() {
     await app.listen({ port: config.port, host: config.host });
     console.log(`Server listening on http://${config.host}:${config.port}`);
     console.log(`IPFS API: ${config.ipfs.apiUrl}`);
-    console.log(`Min CC balance: ${config.minCCBalance}`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

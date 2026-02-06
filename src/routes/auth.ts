@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { generateNonce, storeNonce, validateAndConsumeNonce } from '../services/nonce';
 import { verifySr25519Signature, isValidSS58Address, buildAuthMessage } from '../services/crypto';
-import { isCCHolder, isValidCommunityId } from '../services/chain';
+import { accountExists, isValidCommunityId } from '../services/chain';
 import { metrics } from '../services/metrics';
 import { config } from '../config';
 
@@ -110,19 +110,18 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
         return reply.code(401).send({ error: 'Invalid signature' });
       }
 
-      // Check CC holder status
-      metrics.inc(metrics.CC_HOLDER_CHECK_TOTAL, { communityId });
-      const isHolder = await isCCHolder(address, communityId);
-      if (!isHolder) {
-        metrics.inc(metrics.CC_HOLDER_CHECK_FAILED, { communityId });
-        metrics.inc(metrics.AUTH_VERIFY_FAILURE, { reason: 'not_cc_holder' });
-        fastify.log.warn({ address, communityId }, 'Verify failed: not a CC holder');
+      // Check account exists on chain
+      metrics.inc(metrics.ACCOUNT_CHECK_TOTAL, { communityId });
+      const exists = await accountExists(address);
+      if (!exists) {
+        metrics.inc(metrics.ACCOUNT_CHECK_FAILED, { communityId });
+        metrics.inc(metrics.AUTH_VERIFY_FAILURE, { reason: 'account_not_found' });
+        fastify.log.warn({ address, communityId }, 'Verify failed: account does not exist on chain');
         return reply.code(403).send({
-          error: 'Not a CC holder',
-          details: `Minimum balance of ${config.minCCBalance} CC required`,
+          error: 'Account does not exist on chain',
         });
       }
-      metrics.inc(metrics.CC_HOLDER_CHECK_PASSED, { communityId });
+      metrics.inc(metrics.ACCOUNT_CHECK_PASSED, { communityId });
 
       // Issue JWT
       const token = fastify.jwt.sign(

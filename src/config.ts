@@ -25,5 +25,4 @@ export const config = {
     ttlSeconds: parseInt(process.env.NONCE_TTL_SECONDS || '300', 10),
   },
 
-  minCCBalance: parseFloat(process.env.MIN_CC_BALANCE || '0.1'),
 };
