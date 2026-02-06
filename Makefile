@@ -1,5 +1,8 @@
 .PHONY: help dev prod build test clean logs
 
+# Use 'docker compose' (v2) instead of 'docker-compose' (v1)
+COMPOSE := docker compose
+
 help:
 	@echo "IPFS Auth Gateway - Available commands:"
 	@echo ""
@@ -14,17 +17,17 @@ help:
 
 # Development
 dev:
-	docker-compose -f docker-compose.dev.yml up --build
+	$(COMPOSE) -f docker-compose.dev.yml up --build
 
 dev-down:
-	docker-compose -f docker-compose.dev.yml down
+	$(COMPOSE) -f docker-compose.dev.yml down
 
 # Production
 prod:
-	docker-compose up -d --build
+	$(COMPOSE) up -d --build
 
 prod-down:
-	docker-compose down
+	$(COMPOSE) down
 
 # Build
 build:
@@ -36,19 +39,19 @@ test:
 
 # Logs
 logs:
-	docker-compose logs -f gateway
+	$(COMPOSE) logs -f gateway
 
 logs-all:
-	docker-compose logs -f
+	$(COMPOSE) logs -f
 
 # Monitoring (optional)
 monitoring:
-	docker-compose --profile monitoring up -d --build
+	$(COMPOSE) --profile monitoring up -d --build
 
 # Clean
 clean:
-	docker-compose -f docker-compose.dev.yml down -v 2>/dev/null || true
-	docker-compose down -v 2>/dev/null || true
+	$(COMPOSE) -f docker-compose.dev.yml down -v 2>/dev/null || true
+	$(COMPOSE) down -v 2>/dev/null || true
 	rm -rf dist node_modules
 
 # Initialize Let's Encrypt certificates
