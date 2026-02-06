@@ -57,10 +57,6 @@ export async function ipfsRoutes(fastify: FastifyInstance): Promise<void> {
       }
 
       try {
-        // Create form data for IPFS
-        const FormData = (await import('form-data')).default;
-        const formData = new FormData();
-
         // Collect file buffer
         const chunks: Buffer[] = [];
         for await (const chunk of data.file) {
@@ -68,17 +64,18 @@ export async function ipfsRoutes(fastify: FastifyInstance): Promise<void> {
         }
         const fileBuffer = Buffer.concat(chunks);
 
-        formData.append('file', fileBuffer, {
-          filename: data.filename || 'file',
-          contentType: data.mimetype,
-        });
+        // Create form data for IPFS using native FormData
+        const formData = new FormData();
+        formData.append(
+          'file',
+          new Blob([fileBuffer], { type: data.mimetype }),
+          data.filename || 'file'
+        );
 
-        // Proxy to IPFS node
-        const fetch = (await import('node-fetch')).default;
+        // Proxy to IPFS node using native fetch
         const ipfsResponse = await fetch(`${config.ipfs.apiUrl}/api/v0/add?pin=true`, {
           method: 'POST',
-          body: formData as any,
-          headers: formData.getHeaders(),
+          body: formData,
         });
 
         if (!ipfsResponse.ok) {
@@ -133,7 +130,6 @@ export async function ipfsRoutes(fastify: FastifyInstance): Promise<void> {
       const { cid } = request.params;
 
       try {
-        const fetch = (await import('node-fetch')).default;
         const ipfsResponse = await fetch(`${config.ipfs.apiUrl}/api/v0/cat?arg=${cid}`, {
           method: 'POST',
         });
@@ -142,7 +138,7 @@ export async function ipfsRoutes(fastify: FastifyInstance): Promise<void> {
           return reply.code(404).send({ error: 'Content not found' });
         }
 
-        const buffer = await ipfsResponse.buffer();
+        const buffer = Buffer.from(await ipfsResponse.arrayBuffer());
         return reply.send(buffer);
       } catch (error) {
         fastify.log.error({ error }, 'IPFS cat error');
