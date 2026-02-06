@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "sourceMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "@encointer/types": ["node_modules/@encointer/types/src"],
+      "@encointer/types/*": ["node_modules/@encointer/types/src/*"],
+      "@encointer/util": ["node_modules/@encointer/util/src"],
+      "@encointer/util/*": ["node_modules/@encointer/util/src/*"],
+      "@encointer/node-api": ["node_modules/@encointer/node-api/src"],
+      "@encointer/node-api/*": ["node_modules/@encointer/node-api/src/*"]
+    }
+  },
+  "include": [
+    "node_modules/@encointer/types/src/**/*.ts",
+    "node_modules/@encointer/util/src/**/*.ts",
+    "node_modules/@encointer/node-api/src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules/@encointer/*/src/**/*.spec.ts",
+    "node_modules/@encointer/*/src/**/e2e*.ts",
+    "node_modules/@encointer/*/src/**/test-*"
+  ]
+}
