@@ -15,6 +15,7 @@ export const config = {
 
   chain: {
     rpcUrl: process.env.CHAIN_RPC_URL || 'wss://kusama.api.encointer.org',
+    minBalanceCC: parseFloat(process.env.MIN_BALANCE_CC || '0.1'),
   },
 
   rateLimit: {

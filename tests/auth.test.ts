@@ -7,8 +7,8 @@ import type { FastifyInstance } from 'fastify';
 
 // Mock chain service
 vi.mock('../src/services/chain', () => ({
-  accountExists: vi.fn().mockResolvedValue(true),
-  isValidCommunityId: vi.fn().mockReturnValue(true),
+  hasMinimumBalance: vi.fn().mockResolvedValue(true),
+  isValidCommunityId: vi.fn().mockResolvedValue(true),
   getChainApi: vi.fn(),
   disconnectChain: vi.fn(),
 }));
@@ -169,6 +169,40 @@ describe('auth routes', () => {
       });
 
       expect(secondRes.statusCode).toBe(401);
+    });
+
+    it('should reject when balance is insufficient', async () => {
+      const { hasMinimumBalance } = await import('../src/services/chain');
+      (hasMinimumBalance as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false);
+
+      // Get challenge
+      const challengeRes = await app.inject({
+        method: 'POST',
+        url: '/auth/challenge',
+        payload: {
+          address: alice.address,
+          communityId: 'sqm1v79dF6b',
+        },
+      });
+
+      const { nonce, timestamp, message } = JSON.parse(challengeRes.body);
+      const signature = u8aToHex(alice.sign(message));
+
+      const verifyRes = await app.inject({
+        method: 'POST',
+        url: '/auth/verify',
+        payload: {
+          address: alice.address,
+          communityId: 'sqm1v79dF6b',
+          signature,
+          nonce,
+          timestamp,
+        },
+      });
+
+      expect(verifyRes.statusCode).toBe(403);
+      const body = JSON.parse(verifyRes.body);
+      expect(body.error).toContain('Insufficient community currency balance');
     });
   });
 });

@@ -1,5 +1,7 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
-import { BN } from '@polkadot/util';
+import { options } from '@encointer/node-api';
+import { communityIdentifierFromString } from '@encointer/util';
+import { parseEncointerBalance } from '@encointer/types';
 import { config } from '../config';
 
 let api: ApiPromise | null = null;
@@ -10,7 +12,10 @@ export async function getChainApi(): Promise<ApiPromise> {
   }
 
   const provider = new WsProvider(config.chain.rpcUrl);
-  api = await ApiPromise.create({ provider });
+  api = await ApiPromise.create({
+    ...options(),
+    provider,
+  });
   return api;
 }
 
@@ -21,12 +26,25 @@ export async function disconnectChain(): Promise<void> {
   }
 }
 
-export async function accountExists(address: string): Promise<boolean> {
-  const chainApi = await getChainApi();
-  const info = await chainApi.query.system.account(address);
-  return !info.isEmpty && (info as any).data.free.gt(new BN(0));
+export function parseCommunityId(communityId: string, chainApi: ApiPromise): ReturnType<typeof communityIdentifierFromString> | null {
+  try {
+    return communityIdentifierFromString(chainApi.registry, communityId);
+  } catch {
+    return null;
+  }
 }
 
-export function isValidCommunityId(communityId: string): boolean {
-  return /^[a-zA-Z0-9]{8,64}$/.test(communityId);
+export async function isValidCommunityId(communityId: string): Promise<boolean> {
+  const chainApi = await getChainApi();
+  return parseCommunityId(communityId, chainApi) !== null;
+}
+
+export async function hasMinimumBalance(address: string, communityId: string): Promise<boolean> {
+  const chainApi = await getChainApi();
+  const cid = parseCommunityId(communityId, chainApi);
+  if (!cid) return false;
+
+  const balanceEntry = await (chainApi.query as any).encointerBalances.balance(cid, address);
+  const principal = parseEncointerBalance(balanceEntry.principal.toBn());
+  return principal >= config.chain.minBalanceCC;
 }

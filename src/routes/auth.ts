@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { generateNonce, storeNonce, validateAndConsumeNonce } from '../services/nonce';
 import { verifySr25519Signature, isValidSS58Address, buildAuthMessage } from '../services/crypto';
-import { accountExists, isValidCommunityId } from '../services/chain';
+import { isValidCommunityId, hasMinimumBalance } from '../services/chain';
 import { metrics } from '../services/metrics';
 import { config } from '../config';
 
@@ -42,7 +42,7 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
         return reply.code(400).send({ error: 'Invalid SS58 address' });
       }
 
-      if (!isValidCommunityId(communityId)) {
+      if (!await isValidCommunityId(communityId)) {
         return reply.code(400).send({ error: 'Invalid community ID' });
       }
 
@@ -88,7 +88,7 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
         return reply.code(400).send({ error: 'Invalid SS58 address' });
       }
 
-      if (!isValidCommunityId(communityId)) {
+      if (!await isValidCommunityId(communityId)) {
         metrics.inc(metrics.AUTH_VERIFY_FAILURE, { reason: 'invalid_community' });
         return reply.code(400).send({ error: 'Invalid community ID' });
       }
@@ -110,15 +110,15 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
         return reply.code(401).send({ error: 'Invalid signature' });
       }
 
-      // Check account exists on chain
+      // Check encointer balance meets minimum
       metrics.inc(metrics.ACCOUNT_CHECK_TOTAL, { communityId });
-      const exists = await accountExists(address);
-      if (!exists) {
+      const hasBal = await hasMinimumBalance(address, communityId);
+      if (!hasBal) {
         metrics.inc(metrics.ACCOUNT_CHECK_FAILED, { communityId });
-        metrics.inc(metrics.AUTH_VERIFY_FAILURE, { reason: 'account_not_found' });
-        fastify.log.warn({ address, communityId }, 'Verify failed: account does not exist on chain');
+        metrics.inc(metrics.AUTH_VERIFY_FAILURE, { reason: 'insufficient_balance' });
+        fastify.log.warn({ address, communityId }, 'Verify failed: insufficient community currency balance');
         return reply.code(403).send({
-          error: 'Account does not exist on chain',
+          error: `Insufficient community currency balance (minimum ${config.chain.minBalanceCC} CC required)`,
         });
       }
       metrics.inc(metrics.ACCOUNT_CHECK_PASSED, { communityId });
