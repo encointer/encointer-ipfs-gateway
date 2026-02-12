@@ -11,10 +11,16 @@ export async function getChainApi(): Promise<ApiPromise> {
     return api;
   }
 
+  const opts = options();
   const provider = new WsProvider(config.chain.rpcUrl);
   api = await ApiPromise.create({
-    ...options(),
+    ...opts,
     provider,
+    types: {
+      ...opts.types,
+      // On-chain BalanceType is FixedI128 { bits: i128 }, not plain i128
+      BalanceType: { bits: 'i128' },
+    },
   });
   return api;
 }
@@ -45,6 +51,6 @@ export async function hasMinimumBalance(address: string, communityId: string): P
   if (!cid) return false;
 
   const balanceEntry = await (chainApi.query as any).encointerBalances.balance(cid, address);
-  const principal = parseEncointerBalance(balanceEntry.principal.toBn());
+  const principal = parseEncointerBalance(balanceEntry.principal.bits.toBn());
   return principal >= config.chain.minBalanceCC;
 }
