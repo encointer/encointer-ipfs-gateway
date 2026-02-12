@@ -1,6 +1,6 @@
 {
   "name": "encointer-ipfs-gateway",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "IPFS gateway with sr25519 auth for Encointer Bazaar",
   "main": "dist/index.js",
   "scripts": {
