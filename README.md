@@ -170,6 +170,6 @@ docker run -p 5050:5050 --env-file .env encointer-ipfs-gateway
 | JWT_EXPIRES_IN | 1h | JWT expiration |
 | IPFS_API_URL | http://localhost:5001 | IPFS node API |
 | CHAIN_RPC_URL | wss://kusama.api.encointer.org | Encointer RPC |
-| MIN_CC_BALANCE | 0.1 | Minimum CC to qualify |
+| MIN_BALANCE_CC | 0.1 | Minimum CC balance required for auth |
 | RATE_LIMIT_UPLOADS_PER_DAY | 10 | Max uploads per address |
 | NONCE_TTL_SECONDS | 300 | Nonce expiration (5 min) |
