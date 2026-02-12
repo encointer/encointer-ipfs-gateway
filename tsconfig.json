@@ -12,7 +12,15 @@
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@encointer/node-api": ["./node_modules/@encointer/node-api/src/options.ts"],
+      "@encointer/types": ["./node_modules/@encointer/types/src/index.ts"],
+      "@encointer/types/*": ["./node_modules/@encointer/types/src/*"],
+      "@encointer/util": ["./node_modules/@encointer/util/src/index.ts"],
+      "@encointer/util/*": ["./node_modules/@encointer/util/src/*"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "tests"]
