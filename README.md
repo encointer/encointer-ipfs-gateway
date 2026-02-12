@@ -144,6 +144,16 @@ make monitoring
 - Grafana: http://localhost:3000 (admin/admin)
 - Metrics endpoint: http://localhost:5050/metrics
 
+## Docker Hub
+
+```bash
+docker run -d -p 5050:5050 \
+  -e JWT_SECRET=<secret> \
+  -e IPFS_API_URL=http://<ipfs-host>:5001 \
+  -e CHAIN_RPC_URL=wss://kusama.api.encointer.org \
+  encointer/ipfs-gateway
+```
+
 ## Docker (standalone)
 
 ```bash
