@@ -5,7 +5,7 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install
 
-COPY tsconfig.json ./
+COPY tsconfig.json esbuild.config.mjs ./
 COPY src ./src
 
 RUN npm run build
