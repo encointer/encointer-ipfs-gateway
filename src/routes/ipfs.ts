@@ -49,34 +49,37 @@ export async function ipfsRoutes(fastify: FastifyInstance): Promise<void> {
         });
       }
 
-      // Get multipart file
-      const data = await request.file();
-      if (!data) {
-        metrics.inc(metrics.UPLOAD_FAILURE, { reason: 'no_file' });
-        return reply.code(400).send({ error: 'No file provided' });
-      }
-
       try {
-        // Collect file buffer
-        const chunks: Buffer[] = [];
-        for await (const chunk of data.file) {
-          chunks.push(chunk);
-        }
-        const fileBuffer = Buffer.concat(chunks);
-
-        // Create form data for IPFS using native FormData
+        // Collect all multipart files
+        const parts = request.files();
         const formData = new FormData();
-        formData.append(
-          'file',
-          new Blob([fileBuffer], { type: data.mimetype }),
-          data.filename || 'file'
-        );
+        let fileCount = 0;
+        for await (const part of parts) {
+          const chunks: Buffer[] = [];
+          for await (const chunk of part.file) {
+            chunks.push(chunk);
+          }
+          formData.append(
+            'file',
+            new Blob([Buffer.concat(chunks)], { type: part.mimetype }),
+            part.filename || 'file'
+          );
+          fileCount++;
+        }
 
-        // Proxy to IPFS node using native fetch
-        const ipfsResponse = await fetch(`${config.ipfs.apiUrl}/api/v0/add?pin=true`, {
-          method: 'POST',
-          body: formData,
-        });
+        if (fileCount === 0) {
+          metrics.inc(metrics.UPLOAD_FAILURE, { reason: 'no_file' });
+          return reply.code(400).send({ error: 'No file provided' });
+        }
+
+        // Forward client query params (e.g. wrap-with-directory) to kubo
+        const clientParams = request.query as Record<string, string>;
+        const kuboParams = new URLSearchParams({ pin: 'true', ...clientParams });
+
+        const ipfsResponse = await fetch(
+          `${config.ipfs.apiUrl}/api/v0/add?${kuboParams.toString()}`,
+          { method: 'POST', body: formData },
+        );
 
         if (!ipfsResponse.ok) {
           const errorText = await ipfsResponse.text();
@@ -85,25 +88,44 @@ export async function ipfsRoutes(fastify: FastifyInstance): Promise<void> {
           return reply.code(502).send({ error: 'IPFS upload failed' });
         }
 
-        const result = await ipfsResponse.json() as { Hash: string; Name: string; Size: string };
+        // Kubo returns NDJSON (one JSON object per line)
+        const responseText = await ipfsResponse.text();
+        const lines = responseText.split('\n').filter(l => l.trim());
+        const results = lines.map(l => JSON.parse(l) as { Hash: string; Name: string; Size: string });
 
+        const totalBytes = results.reduce((sum, r) => sum + parseInt(r.Size, 10), 0);
         metrics.inc(metrics.UPLOAD_SUCCESS, { communityId });
-        metrics.inc(metrics.UPLOAD_BYTES, {}, parseInt(result.Size, 10));
+        metrics.inc(metrics.UPLOAD_BYTES, {}, totalBytes);
 
+        const lastResult = results[results.length - 1];
         fastify.log.info({
           address,
           communityId,
-          hash: result.Hash,
-          size: result.Size,
-          filename: data.filename,
-        }, 'File uploaded to IPFS');
+          hash: lastResult.Hash,
+          fileCount,
+          totalBytes,
+        }, 'File(s) uploaded to IPFS');
 
-        return {
-          Hash: result.Hash,
-          Name: result.Name,
-          Size: result.Size,
-          remaining_uploads: rateLimit.remaining,
-        };
+        if (results.length === 1) {
+          // Single file — backwards-compatible JSON response
+          return {
+            Hash: results[0].Hash,
+            Name: results[0].Name,
+            Size: results[0].Size,
+            remaining_uploads: rateLimit.remaining,
+          };
+        }
+
+        // Multi-file / wrap-with-directory — NDJSON response
+        reply.header('Content-Type', 'application/x-ndjson');
+        const ndjson = results
+          .map((r, i) => {
+            const obj: Record<string, unknown> = { Hash: r.Hash, Name: r.Name, Size: r.Size };
+            if (i === results.length - 1) obj.remaining_uploads = rateLimit.remaining;
+            return JSON.stringify(obj);
+          })
+          .join('\n') + '\n';
+        return reply.send(ndjson);
       } catch (error) {
         fastify.log.error({ error }, 'IPFS proxy error');
         metrics.inc(metrics.UPLOAD_FAILURE, { reason: 'internal_error' });
